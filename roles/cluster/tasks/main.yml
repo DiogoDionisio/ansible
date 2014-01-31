@@ -1,0 +1,16 @@
+---
+# Setup cluster packages
+-
+    yum: name={{ item }} state=installed
+    with_items:
+        - iscsi-initiator-utils
+        - '@ha'
+        - '@ha-management'
+
+-
+    service: name={{ item }} enabled=yes
+    with_items:
+        - cman
+        - rgmanager
+        - modclusterd
+        - ricci

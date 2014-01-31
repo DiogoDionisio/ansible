@@ -1,0 +1,9 @@
+---
+#file: home.yml
+#description: home machines used for testing
+
+-
+    hosts: $groups
+    roles:
+    - common
+    - cluster

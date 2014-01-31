@@ -1,0 +1,14 @@
+---
+    -   name: download elasticsearch RPM
+        get_url: url=https://download.elasticsearch.org/elasticsearch/elasticsearch/elasticsearch-{{ elasticsearch_version }}.noarch.rpm dest=/tmp/elasticsearch.rpm mode=0444
+
+    -   name: add Elasticsearch via rpm
+        yum: name=/tmp/elasticsearch.rpm state=present
+        when: ansible_os_family == "RedHat"
+
+    -   name: remove temporary rpm files
+        file: path=/tmp/elasticsearch.rpm state=absent
+        when: ansible_os_family == "RedHat"
+
+    -   name: restart elasticsearch service and wait for availability 
+        service: name=elasticsearch state=restarted enabled=yes sleep=10

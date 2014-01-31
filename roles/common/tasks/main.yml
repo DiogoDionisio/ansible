@@ -1,0 +1,74 @@
+---
+
+# Setup common packages required on all nodes
+-
+    yum: name={{ item }} state=installed
+    with_items:
+        - sysstat
+        - wget
+        - curl
+        - telnet
+        - openssh
+        - gawk
+        - sed
+        - vim-enhanced
+        - libselinux-python
+
+
+#Ensure admins is setup correctly
+-
+    name:  ensure admins group
+    group: name=admins system=yes state=present
+
+#Disable firewall
+-
+    name: turn firewall off on restart
+    service: name=iptables enabled=no state=stopped
+
+#Disable SELinux
+- 
+    name: ensure SELinux is turned off temporarily
+    command: /usr/sbin/setenforce Permissive
+    ignore_errors: yes
+-
+    name: turn off SELinux for good 
+    lineinfile: "line=SELINUX=disabled dest=/etc/sysconfig/selinux regexp=^SELINUX= state=present"
+
+#Setup sudoers file correctly
+-
+    name: copy sudoers file to backup
+    command: cp -f /etc/sudoers /etc/sudoers.{{ ansible_date_time.date }}.bak
+
+-
+    name: copy sudoers file to temporary file for modification
+    command: cp -f /etc/sudoers /etc/sudoers.tmp
+
+- 
+    name: ensure custadmin group is in sudoers file
+    lineinfile: "dest=/etc/sudoers.tmp state=present regexp='^%admins' line='%admins     ALL=(ALL) NOPASSWD: ALL, !/bin/su -, !/usr/sbin/visudo'"
+
+-   
+    name: sudoers file check and replace existing if good
+    shell: visudo -q -c -f /etc/sudoers.tmp && cp -f /etc/sudoers.tmp /etc/sudoers
+
+- 
+    name: remove tmp sudoers file
+    file: path=/etc/sudoers.tmp state=absent
+
+#Setup required users
+- 
+    name: add common admin users to systems
+    user: name={{ item }} groups=admins home=/home/{{ item }} password=$1$98765$p.isMbfF8kOz56k.A9VQQ0 update_password=on_create
+    with_items: 
+        admin_users
+
+#Setup 'emcconne' but only if necessary
+-
+    name: Check if emcconne exists
+    action: shell /usr/bin/getent passwd emcconne | /usr/bin/wc -l | tr -d ''
+    register: user_exists
+
+-
+    name: Add emcconne RSA key to the remote host if that account exists
+    authorized_key: user='emcconne' key="{{ lookup('file', '/home/emcconne/.ssh/id_rsa.pub') }}"
+    when: user_exists.stdout == "1"

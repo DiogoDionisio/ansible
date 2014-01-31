@@ -1,0 +1,12 @@
+---
+-   name: copy Oracle JDK from files area
+    copy: src=../files/jre-7u51-linux-x64.rpm dest=/tmp/java7.rpm
+    when: ansible_os_family == "RedHat"
+
+-   name: add Oracle JVM to system via rpm
+    yum: name=/tmp/java7.rpm state=present
+    when: ansible_os_family == "RedHat"
+
+-   name: remove temporary rpm files
+    file: path=/tmp/java7.rpm state=absent
+    when: ansible_os_family == "RedHat"

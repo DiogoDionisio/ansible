@@ -1,0 +1,10 @@
+---
+#file: elasticsearch.yml
+#description: used for elasticsearch servers
+
+-
+    hosts: $groups
+    roles:
+        - common
+        - java7
+        - elasticsearch

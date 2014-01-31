@@ -1,0 +1,147 @@
+---
+# Install necessary depencencies
+-
+    yum: name={{ item }} state=installed
+    with_items:
+        - subversion
+
+#Setup groups
+-
+    name: add necessary groups to system
+    group: name={{ item }} state=present
+    with_items:
+        - tomcat
+
+#Setup users
+#Default password Welcome01% used
+- 
+    name: add necessary users systems
+    user: name={{ item }} home=/home/{{ item }} password=$1$98765$p.isMbfF8kOz56k.A9VQQ0 update_password=on_create group={{ item }} shell=/bin/bash
+    with_items: 
+        - tomcat
+
+
+
+# Ensure that /opt is present
+-
+    name: ensure /opt directory exists
+    file: path=/opt state=directory
+
+# Copy Maven from files area to host
+-   name: copy maven from files area of jenkins playbook
+    copy: src=../files/apache-maven-{{ maven_version }}-bin.tar.gz dest=/tmp/maven.tar.gz
+
+# Unpack Maven in /opt
+-   name: unpack apache-maven-3
+    action: command creates=/opt/maven-{{ maven_version }} chdir=/opt tar zxvf /tmp/maven.tar.gz
+
+# Link maven directory
+-   name: create maven3 directory link
+    file: path=/opt/maven src=/opt/apache-maven-{{ maven_version }} state=link
+
+# Copy Tomcat from files area to host
+-   name: copy tomcat from files area of jenkins playbook
+    copy: src=../files/apache-tomcat-{{ tomcat_version }}.tar.gz dest=/tmp/tomcat.tar.gz
+
+# Unpack Tomcat
+-   name: unpack tomcat 
+    action: command creates=/opt/apache-tomcat-{{ tomcat_version }} chdir=/opt tar zxvf /tmp/tomcat.tar.gz
+
+# Create directory link
+-   name: create tomcat directory link
+    file: path=/opt/tomcat src=/opt/apache-tomcat-{{ tomcat_version }} state=link
+
+# Add server.xml file pre-configured to allow 8443 and disallow 8080
+# Also includes reference to custom keystore
+-   name: copy tomcat server.xml
+    template: src=../templates/server.j2 dest=/opt/tomcat/conf/server.xml
+
+# Create link for mvn executable
+-   name: create /usr/bin/mvn link
+    file: path=/usr/bin/mvn src=/opt/maven/bin/mvn state=link
+
+# Remove maven archive
+-   name: remove maven temporary files
+    file: path=/tmp/maven.tar.gz state=absent
+
+# Remove tomcat archive
+-   name: remove tomcat temporary files
+    file: path=/tmp/tomcat.tar.gz state=absent
+
+#  Ensure Jenkins home exists
+-   name: create jenkins directory if necessary
+    file: path={{ jenkins_home }} state=directory owner={{ jenkins_owner }}
+
+# Copy tomcat start script 
+-   name: copy tomcat startup file from files area of jenkins playbook
+    template: src=../templates/tomcat.j2 dest=/etc/init.d/tomcat owner=root group=root mode=0755
+
+# Copy jenkins.war file to webapp directory
+-   name: copy jenkins.war file to Tomcat area
+    copy: src=../files/jenkins.war dest={{ catalina_home }}/webapps/{{jenkins_host_name}}.war
+
+# Setup Maven .m2 repository directory
+-   name: create .m2 directory in TOMCAT_HOME
+    file: path={{ maven_user_home }}/.m2 state=directory owner={{ jenkins_owner }}
+
+# Copy settings.xml file to maven area
+-   name: copy settings.xml file for maven Setup
+    copy: src=../files/settings.xml dest={{ maven_user_home }}/.m2
+
+# Copy settings.xml file to maven area
+-   name: copy security-settings.xml file for maven Setup
+    copy: src=../files/settings-security.xml dest={{ maven_user_home }}/.m2 
+
+# Generate self-signed key for Tomcat keystore
+-   name: ensure directory for keys is created
+    file: path={{ keystore_location }} state=directory
+
+-   name: create key and new keystore if it does not exist
+    command:  "{{java_home}}/bin/keytool -genkeypair -dname 'cn=Young Kim, ou=CCIIO, o=CMS, c=US' -alias tomcat_selfsigned -keypass changeit -keystore {{keystore_location}}/{{keystore_name}} -storepass {{keystore_pass}} -validity 3600 creates={{ keystore_location}}/{{keystore_name}}"
+
+-   name: set /opt/tomcat permissions to tomcat user
+    file: path=/opt/apache-tomcat-{{ tomcat_version }} owner=tomcat group=tomcat state=directory recurse=yes
+
+# Restart tomcat and wait for service
+-   name: restart tomcat service and wait for availability 
+    service: name=tomcat state=restarted enabled=yes sleep=10
+
+-   name: 60s delay while starting Jenkins
+    wait_for: port=8080 delay=60
+
+# Install Jenkins CLI
+-   name: install Jenkins CLI
+    action: get_url url={{ jenkins_http_url }}/jnlpJars/jenkins-cli.jar dest={{ jenkins_home }} mode=0440
+
+-   name: get Jenkins updates 
+    action: get_url url=http://updates.jenkins-ci.org/update-center.json dest={{ jenkins_home }}/updates_jenkins.json thirsty=yes mode=0440
+    register: jenkins_updates
+
+-   name: List plugins
+    action: shell java -jar {{ jenkins_cli }} -s http://localhost:8080 list-plugins | cut -f 1 -d ' '
+    when: jenkins_plugins is defined
+    register: plugins_installed
+
+# Install/update Jenkins plugins
+-   name:  Install promoted-builds plugin
+    copy: src=../files/promoted-builds_2.14.hpi dest={{ jenkins_home }}/plugins/promoted-builds.hpi
+    notify:
+    - restart tomcat
+
+-   name:  Install role-strategy plugin
+    copy: src=../files/role-strategy_2.1.hpi dest={{ jenkins_home }}/plugins/role-strategy.hpi
+    notify:
+    - restart tomcat
+
+-   name: Install collabnet plugin
+    copy: src=../files/collabnet_1.1.9.hpi dest={{ jenkins_home }}/plugins/collabnet.hpi
+    notify:
+    - restart tomcat
+
+-   name: Install publish-over-ssh plugin
+    copy: src=../files/publish-over-ssh_1.10.hpi dest={{ jenkins_home }}/plugins/publish-over-ssh.hpi
+    notify:
+    - restart tomcat
+
+-   name: set /opt/tomcat permissions to tomcat user
+    file: path=/opt/apache-tomcat-{{ tomcat_version }} owner=tomcat group=tomcat state=directory recurse=yes

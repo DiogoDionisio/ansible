@@ -1,0 +1,14 @@
+jenkins_owner: tomcat
+catalina_home: /opt/tomcat
+jenkins_home: /opt/jenkins
+maven_user_home: /home/tomcat
+tomcat_version: 7.0.47
+maven_version: 3.1.1
+catalina_opts: -Xmx2048m -XX:MaxPermSize=1024M
+maven_opts: -Xmx2048m -XX:MaxPermSize=1024M 
+keystore_location: /opt/tomcat/ssl/
+keystore_name: keystore.jks
+keystore_pass: changeit
+java_home: /usr/java/default/jre
+jenkins_http_url: http://localhost:8080/{{jenkins_host_name}}
+jenkins_cli: '{{ jenkins_home }}/jenkins-cli.jar'

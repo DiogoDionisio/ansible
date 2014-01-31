@@ -1,0 +1,11 @@
+---
+#file: build.yml
+#description: used for Jenkins build servers
+
+-
+    hosts: $groups
+    roles:
+        - common
+        - java7
+        - X11
+        - jenkins
