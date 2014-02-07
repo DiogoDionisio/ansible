@@ -1,0 +1,41 @@
+---
+-   name: download epel RPM
+    get_url: url=http://download-i2.fedoraproject.org/pub/epel/6/i386/epel-release-6-8.noarch.rpm dest=/tmp/epel.rpm mode=0444
+
+-   name: add EPEL via rpm
+    yum: name=/tmp/epel.rpm state=present
+    when: ansible_os_family == "RedHat"
+
+# Setup common packages required on all nodes
+#Use yum grouplist -v |fgrep 'Development tools' for short name
+-
+    yum: name={{ item }} state=installed
+    with_items:
+        - screen
+        - '@development'
+        - npm 
+        - nodejs
+        - ruby
+        - ruby-irb
+        - rubygems
+
+
+# Setup common npm packages required on all nodes
+-
+    gem: name={{ item }} state=latest include_dependencies=yes user_install=no
+    with_items:
+        - sass
+        - compass
+
+# Setup common npm packages required on all nodes
+-
+    npm: name={{ item }} state=latest global=yes
+    with_items:
+        - coffee-script
+        - yo
+        - grunt-cli
+        - bower
+        - generator-webapp
+        - generator-angular-fullstack
+        - lodash
+        - gifsicle
